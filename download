@@ -1,0 +1,70 @@
+use anchor_lang::prelude::*;
+
+declare_id!("BWahfkkoqZtBGPmJx6Sgqmq39J6ssq3ZpErPU2PJheD1");
+
+#[program]
+pub mod notas_simple {
+    use super::*;
+
+    pub fn crear_nota(ctx: Context<CrearNota>, texto: String) -> Result<()> {
+        require!(texto.len() <= 400, ErrorCode::TextoMuyLargo);
+
+        let nota = &mut ctx.accounts.nota;
+        nota.autor = *ctx.accounts.usuario.key;
+        nota.texto = texto;
+
+        msg!("Nota guardada para {}", nota.autor);
+        Ok(())
+    }
+
+    pub fn borrar_nota(_ctx: Context<BorrarNota>) -> Result<()> {
+        msg!("Nota borrada");
+        Ok(())
+    }
+}
+
+#[derive(Accounts)]
+pub struct CrearNota<'info> {
+    #[account(
+        init_if_needed,
+        payer = usuario,
+        space = 8 + 32 + 4 + 400 + 1, 
+        seeds = [b"nota", usuario.key().as_ref()],
+        bump
+    )]
+    pub nota: Account<'info, Nota>,
+
+    #[account(mut)]
+    pub usuario: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct BorrarNota<'info> {
+    #[account(
+        mut,
+        close = usuario,         
+        seeds = [b"nota", usuario.key().as_ref()],
+        bump
+    )]
+    pub nota: Account<'info, Nota>,
+
+    #[account(mut)]
+    pub usuario: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+pub struct Nota {
+    pub autor: Pubkey,
+    pub texto: String,
+    pub bump: u8,
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("El texto es demasiado largo (máximo 400 caracteres)")]
+    TextoMuyLargo,
+}
